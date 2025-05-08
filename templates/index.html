@@ -99,11 +99,11 @@
       resultDiv.innerHTML = "<p>Loading...</p>";
 
       try {
-        const response = await fetch(window.location.href, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ accessToken }),
-        });
+        const response = await fetch("/check-token", {  // Changed from window.location.href
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ accessToken: accessToken }),
+});
         const data = await response.json();
 
         if (response.ok) {
