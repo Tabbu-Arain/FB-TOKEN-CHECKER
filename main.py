@@ -1,11 +1,10 @@
 from flask import Flask, request, jsonify, render_template
-from flask_cors import CORS  # <-- Add this
 import requests
 import os
 
 app = Flask(__name__)
-CORS(app)  # <-- Enable CORS
 
+# Facebook App Credentials (Set in Render environment)
 APP_ID = os.environ.get('FB_APP_ID')
 APP_SECRET = os.environ.get('FB_APP_SECRET')
 
@@ -15,31 +14,32 @@ def index():
 
 @app.route('/check-token', methods=['POST'])
 def handle_token():
+    data = request.get_json()
+    access_token = data.get('accessToken')
+
+    if not access_token:
+        return jsonify({'error': 'No access token provided'}), 400
+
     try:
-        data = request.get_json()
-        access_token = data.get('accessToken')
-
-        if not access_token:
-            return jsonify({'error': 'Token missing'}), 400
-
-        # Validate token
         app_token = f"{APP_ID}|{APP_SECRET}"
         debug_url = f"https://graph.facebook.com/debug_token?input_token={access_token}&access_token={app_token}"
-        debug_res = requests.get(debug_url).json()
+        debug_response = requests.get(debug_url).json()
 
-        if 'error' in debug_res:
-            return jsonify({'error': debug_res['error']['message']}), 400
+        if 'error' in debug_response:
+            return jsonify({'error': debug_response['error']['message']}), 400
 
-        # Fetch user data
-        user_url = f"https://graph.facebook.com/me?fields=id,name,email,birthday,picture&access_token={access_token}"
-        user_res = requests.get(user_url).json()
+        if not debug_response['data']['is_valid']:
+            return jsonify({'error': 'Invalid access token'}), 401
+
+        user_url = f"https://graph.facebook.com/me?fields=id,name,email,birthday,picture.width(200).height(200)&access_token={access_token}"
+        user_response = requests.get(user_url).json()
 
         return jsonify({
-            'id': user_res.get('id'),
-            'name': user_res.get('name'),
-            'email': user_res.get('email'),
-            'birthday': user_res.get('birthday'),
-            'picture': user_res.get('picture', {}).get('data', {})
+            'id': user_response.get('id'),
+            'name': user_response.get('name'),
+            'email': user_response.get('email'),
+            'birthday': user_response.get('birthday'),
+            'picture': user_response.get('picture', {}).get('data', {})
         })
 
     except Exception as e:
